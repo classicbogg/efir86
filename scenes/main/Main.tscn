@@ -1,0 +1,95 @@
+[gd_scene load_steps=7 format=3 uid="uid://efir86main"]
+
+[ext_resource type="Script" path="res://scenes/main/main.gd" id="1_main"]
+[ext_resource type="Script" path="res://scenes/hud/chrome.gd" id="2_chrome"]
+[ext_resource type="Script" path="res://scenes/map/route_map.gd" id="3_map"]
+[ext_resource type="Script" path="res://scenes/hud/waybills.gd" id="4_bills"]
+[ext_resource type="Script" path="res://scenes/radio/radio_panel.gd" id="5_radio"]
+[ext_resource type="Script" path="res://scenes/strip/convoy_strip.gd" id="6_strip"]
+
+[node name="Main" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_main")
+
+[node name="Bg" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+color = Color(0.102, 0.086, 0.071, 1)
+
+[node name="Root" type="VBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 0
+
+[node name="Chrome" type="Control" parent="Root"]
+custom_minimum_size = Vector2(0, 58)
+layout_mode = 2
+size_flags_horizontal = 3
+script = ExtResource("2_chrome")
+
+[node name="Body" type="HBoxContainer" parent="Root"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 0
+
+[node name="MapCol" type="VBoxContainer" parent="Root/Body"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_stretch_ratio = 2.15
+theme_override_constants/separation = 0
+
+[node name="RouteMap" type="Control" parent="Root/Body/MapCol"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+script = ExtResource("3_map")
+
+[node name="Waybills" type="Control" parent="Root/Body/MapCol"]
+custom_minimum_size = Vector2(0, 168)
+layout_mode = 2
+size_flags_horizontal = 3
+script = ExtResource("4_bills")
+
+[node name="RadioPanel" type="Control" parent="Root/Body"]
+custom_minimum_size = Vector2(360, 0)
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_stretch_ratio = 0.82
+script = ExtResource("5_radio")
+
+[node name="ConvoyStrip" type="Control" parent="Root"]
+custom_minimum_size = Vector2(0, 128)
+layout_mode = 2
+size_flags_horizontal = 3
+script = ExtResource("6_strip")
+
+[node name="Status" type="Label" parent="Root"]
+custom_minimum_size = Vector2(0, 32)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.91, 0.88, 0.83, 1)
+theme_override_colors/font_shadow_color = Color(0.1, 0.086, 0.07, 1)
+theme_override_constants/shadow_offset_x = 1
+theme_override_font_sizes/font_size = 15
+text = "…"
+vertical_alignment = 1
+
+[node name="Log" type="Label" parent="Root"]
+visible = false
+layout_mode = 2
+theme_override_colors/font_color = Color(0.72, 0.69, 0.64, 1)
+theme_override_font_sizes/font_size = 12
+text = ""
