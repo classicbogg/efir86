@@ -1,13 +1,14 @@
-[gd_scene load_steps=7 format=3 uid="uid://efir86main"]
+[gd_scene format=3 uid="uid://efir86main"]
 
-[ext_resource type="Script" path="res://scenes/main/main.gd" id="1_main"]
-[ext_resource type="Script" path="res://scenes/hud/chrome.gd" id="2_chrome"]
-[ext_resource type="Script" path="res://scenes/map/route_map.gd" id="3_map"]
-[ext_resource type="Script" path="res://scenes/hud/waybills.gd" id="4_bills"]
-[ext_resource type="Script" path="res://scenes/radio/radio_panel.gd" id="5_radio"]
-[ext_resource type="Script" path="res://scenes/strip/convoy_strip.gd" id="6_strip"]
+[ext_resource type="Script" uid="uid://owyc4khhr722" path="res://scenes/main/main.gd" id="1_main"]
+[ext_resource type="Script" uid="uid://c6biwn0vf2gfs" path="res://scenes/hud/chrome.gd" id="2_chrome"]
+[ext_resource type="Script" uid="uid://ceviopjr7b07p" path="res://scenes/map/route_map.gd" id="3_map"]
+[ext_resource type="Script" uid="uid://t68v4ud0w6ib" path="res://scenes/hud/waybills.gd" id="4_bills"]
+[ext_resource type="Script" uid="uid://c423187btv0i0" path="res://scenes/radio/radio_panel.gd" id="5_radio"]
+[ext_resource type="Script" uid="uid://6l7odldwkynj" path="res://scenes/strip/convoy_strip.gd" id="6_strip"]
+[ext_resource type="Script" uid="uid://draunok112yek" path="res://scripts/tutorial_director.gd" id="7_tut"]
 
-[node name="Main" type="Control"]
+[node name="Main" type="Control" unique_id=1596112252]
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
@@ -16,7 +17,7 @@ grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("1_main")
 
-[node name="Bg" type="ColorRect" parent="."]
+[node name="Bg" type="ColorRect" parent="." unique_id=1964985979]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -26,7 +27,7 @@ grow_vertical = 2
 mouse_filter = 2
 color = Color(0.102, 0.086, 0.071, 1)
 
-[node name="Root" type="VBoxContainer" parent="."]
+[node name="Root" type="VBoxContainer" parent="." unique_id=1462575718]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -35,49 +36,49 @@ grow_horizontal = 2
 grow_vertical = 2
 theme_override_constants/separation = 0
 
-[node name="Chrome" type="Control" parent="Root"]
+[node name="Chrome" type="Control" parent="Root" unique_id=1120804208]
 custom_minimum_size = Vector2(0, 58)
 layout_mode = 2
 size_flags_horizontal = 3
 script = ExtResource("2_chrome")
 
-[node name="Body" type="HBoxContainer" parent="Root"]
+[node name="Body" type="HBoxContainer" parent="Root" unique_id=479555303]
 layout_mode = 2
 size_flags_vertical = 3
 theme_override_constants/separation = 0
 
-[node name="MapCol" type="VBoxContainer" parent="Root/Body"]
+[node name="MapCol" type="VBoxContainer" parent="Root/Body" unique_id=1800480209]
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_stretch_ratio = 2.15
 theme_override_constants/separation = 0
 
-[node name="RouteMap" type="Control" parent="Root/Body/MapCol"]
+[node name="RouteMap" type="Control" parent="Root/Body/MapCol" unique_id=1984807047]
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 script = ExtResource("3_map")
 
-[node name="Waybills" type="Control" parent="Root/Body/MapCol"]
-custom_minimum_size = Vector2(0, 168)
+[node name="Waybills" type="Control" parent="Root/Body/MapCol" unique_id=22185205]
+custom_minimum_size = Vector2(0, 200)
 layout_mode = 2
 size_flags_horizontal = 3
 script = ExtResource("4_bills")
 
-[node name="RadioPanel" type="Control" parent="Root/Body"]
+[node name="RadioPanel" type="Control" parent="Root/Body" unique_id=632313099]
 custom_minimum_size = Vector2(360, 0)
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_stretch_ratio = 0.82
 script = ExtResource("5_radio")
 
-[node name="ConvoyStrip" type="Control" parent="Root"]
+[node name="ConvoyStrip" type="Control" parent="Root" unique_id=861694758]
 custom_minimum_size = Vector2(0, 128)
 layout_mode = 2
 size_flags_horizontal = 3
 script = ExtResource("6_strip")
 
-[node name="Status" type="Label" parent="Root"]
+[node name="Status" type="Label" parent="Root" unique_id=1670333438]
 custom_minimum_size = Vector2(0, 32)
 layout_mode = 2
 theme_override_colors/font_color = Color(0.91, 0.88, 0.83, 1)
@@ -87,9 +88,18 @@ theme_override_font_sizes/font_size = 15
 text = "…"
 vertical_alignment = 1
 
-[node name="Log" type="Label" parent="Root"]
+[node name="Log" type="Label" parent="Root" unique_id=2058735982]
 visible = false
 layout_mode = 2
 theme_override_colors/font_color = Color(0.72, 0.69, 0.64, 1)
 theme_override_font_sizes/font_size = 12
-text = ""
+
+[node name="TutorialDirector" type="Control" parent="." unique_id=575950769]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("7_tut")

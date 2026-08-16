@@ -13,15 +13,20 @@ func _process(_delta: float) -> void:
 func _draw() -> void:
 	draw_rect(Rect2(Vector2.ZERO, size), Palette.INK)
 	draw_line(Vector2(0, size.y - 1), Vector2(size.x, size.y - 1), Palette.STEEL, 1.0)
-	_stamp("ЭФИР 86", Vector2(16, 14), Palette.PAPER)
-	_stamp("демо-срез  ·  карьер → вышка 14", Vector2(16, 34), Palette.PAPER_DIM)
+	_stamp("RELAY", Vector2(16, 14), Palette.PAPER)
+	var sub := "ночное радио колонны"
+	if Game.level_id == 0:
+		sub = "обучение · уровень 0"
+	elif Game.level_id >= 0:
+		sub = "уровень %d  ·  карьер → вышка 14" % Game.level_id
+	_stamp(sub, Vector2(16, 34), Palette.PAPER_DIM)
 	_hour_bar()
 	_needle("ЗЕМЛЯ", Game.trust, Palette.DUST, Vector2(size.x - 360, 10))
 	_needle("СВОИ", Game.authority, Palette.CRT, Vector2(size.x - 180, 10))
 
 
 func _hour_bar() -> void:
-	var rect := Rect2(280, 18, 220, 10)
+	var rect := Rect2(300, 18, 220, 10)
 	draw_rect(rect, Palette.INK_RAISED)
 	draw_rect(Rect2(rect.position, Vector2(rect.size.x * Game.hour, rect.size.y)), Palette.DUST_DIM)
 	draw_rect(rect, Palette.STEEL, false, 1.0)
@@ -30,7 +35,7 @@ func _hour_bar() -> void:
 		label = "ПРЕДРАССВЕТ"
 	elif Game.hour > 0.33:
 		label = "ГЛУХАЯ"
-	_stamp(label, Vector2(280, 32), Palette.PAPER_DIM)
+	_stamp(label, Vector2(300, 32), Palette.PAPER_DIM)
 
 
 func _needle(title: String, value: float, col: Color, pos: Vector2) -> void:

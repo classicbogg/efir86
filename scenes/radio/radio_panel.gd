@@ -43,32 +43,52 @@ func _draw_wave() -> void:
 	var rect := Rect2(12, 76, size.x - 24, 64)
 	draw_rect(rect, Color(0.05, 0.07, 0.05))
 	draw_rect(rect, Palette.CRT_DIM, false, 1.0)
+	var at_stop: bool = Game.phase == Game.Phase.STOP
+	var at_epi: bool = Game.phase == Game.Phase.EPILOGUE or Game.phase == Game.Phase.SUMMARY
 	var talking: bool = not Game.active_call.is_empty() and Game.frequency == str(Game.active_call.get("band", ""))
 	var col := Palette.CRT if talking else Palette.CRT_DIM
+	if at_epi and talking:
+		col = Palette.CRT
 	var pts := PackedVector2Array()
 	var n := 48
 	for i in n:
 		var t: float = float(i) / float(n - 1)
 		var x: float = rect.position.x + t * rect.size.x
 		var amp: float = 18.0 if talking else 4.0
-		var y: float = rect.get_center().y + sin(_wave_phase + t * 14.0) * amp * (0.4 + Game.haze)
-		if talking and int(i + int(_wave_phase * 3.0)) % 7 == 0:
+		if at_stop:
+			amp = 1.6
+		elif at_epi and talking:
+			amp = 14.0
+		elif at_epi:
+			amp = 2.0
+		var haze_factor: float = 0.15 if at_epi else (0.4 + Game.haze)
+		var y: float = rect.get_center().y + sin(_wave_phase + t * 14.0) * amp * haze_factor
+		if talking and not at_epi and int(i + int(_wave_phase * 3.0)) % 7 == 0:
 			y += (1.0 if i % 2 == 0 else -1.0) * 10.0 * Game.haze
 		pts.append(Vector2(x, y))
 	for i in pts.size() - 1:
 		draw_line(pts[i], pts[i + 1], col, 1.6)
 	if talking:
-		_stamp("ON AIR", Vector2(rect.position.x + 6, rect.position.y + 4), Palette.CRT)
+		var tag := "ON AIR" if not at_epi else "ЧИСТО"
+		_stamp(tag, Vector2(rect.position.x + 6, rect.position.y + 4), Palette.CRT)
+	elif at_stop:
+		_stamp("ветер · металл", Vector2(rect.position.x + 6, rect.position.y + 4), Palette.JAM)
 
 
 func _draw_call_text() -> void:
 	var y := 152.0
 	if Game.active_call.is_empty():
-		_stamp("тишина на мембране", Vector2(14, y), Palette.JAM)
+		if Game.phase == Game.Phase.EPILOGUE or Game.phase == Game.Phase.SUMMARY:
+			_stamp("мембрана открыта", Vector2(14, y), Palette.CRT_DIM)
+		else:
+			_stamp("тишина на мембране", Vector2(14, y), Palette.JAM)
 		return
 	var txt: String = str(Game.active_call.get("text", ""))
-	_stamp("частота %s  ·  %d с" % [Game.active_call.get("band", "?"), int(Game.call_timer)], Vector2(14, y), Palette.AMBER)
-	_stamp(txt, Vector2(14, y + 22), Palette.PAPER)
+	var tag := "частота %s  ·  %d с" % [Game.active_call.get("band", "?"), int(Game.call_timer)]
+	if bool(Game.active_call.get("epilogue", false)):
+		tag = "под мачтой  ·  слова целые  ·  %d с" % int(Game.call_timer)
+	_stamp(tag, Vector2(14, y), Palette.AMBER)
+	draw_multiline_string(ThemeDB.fallback_font, Vector2(14, y + 22), txt, HORIZONTAL_ALIGNMENT_LEFT, size.x - 28, 13, -1, Palette.PAPER)
 
 
 func _draw_buttons() -> void:
@@ -105,8 +125,16 @@ func _gui_input(event: InputEvent) -> void:
 	elif not Game.active_call.is_empty():
 		if Rect2(12, size.y - 84, size.x - 24, 34).has_point(event.position):
 			Game.answer_call(0)
+			_notify_director(0)
 		elif Rect2(12, size.y - 44, size.x - 24, 34).has_point(event.position):
 			Game.answer_call(1)
+			_notify_director(1)
+
+
+func _notify_director(button_i: int) -> void:
+	var director = get_tree().root.find_child("TutorialDirector", true, false)
+	if director and director.has_method("notify_answer"):
+		director.notify_answer(button_i)
 
 
 func _stamp(text: String, pos: Vector2, color: Color) -> void:
