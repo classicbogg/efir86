@@ -1,0 +1,20 @@
+---
+description: Freeze finished menu and settings UI until the user explicitly asks to change it
+alwaysApply: true
+---
+
+# Меню и настройки — не трогать
+
+На 17 августа 2026 пользователь зафиксировал текущую работу как готовую (~90%). **Не менять**, пока он явно не скажет.
+
+Не редактировать без прямого запроса:
+
+- `main-menu.tscn`, `menu.gd`
+- `ui/settings_overlay.tscn`, `ui/settings_overlay.gd`
+- `ui/menu_row.gd`, `ui/ui_sfx.gd`, `ui/ui_style.gd`
+- `ui/arrow_button.gd`, `ui/square_check.gd`
+- `ui/setting_cycle.gd`, `ui/setting_slider.gd`, `ui/setting_check.gd`, `ui/setting_bind.gd`
+- `intro.tscn` / `intro.gd` (анимацию интро не трогать)
+- `tools_make_settings_tscn.py`
+
+Это касается вёрстки, цветов, рамок, квадратиков, звуков nav/click, хитбоксов кнопок и поведения настроек.
