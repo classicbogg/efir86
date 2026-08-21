@@ -15,5 +15,9 @@ static func game() -> Node:
 	return _root().get_node("Game")
 
 
+static func ui_sfx() -> Node:
+	return _root().get_node_or_null("UiSfx")
+
+
 static func _root() -> Node:
 	return Engine.get_main_loop().root

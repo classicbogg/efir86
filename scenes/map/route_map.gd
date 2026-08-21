@@ -1,153 +1,122 @@
 extends Control
+## Схема: маркеры/рёбра/пин/колонна — ноды. Скрипт только биндит и раскладку.
 
-var _hover: String = ""
+@onready var _bg: ColorRect = $Bg
+@onready var _city: TextureRect = $CityMap
+@onready var _dust: ColorRect = $Dust
+@onready var _title: Label = $Frame/Title
+@onready var _open: Label = $Frame/Open
+@onready var _sub: Label = $Frame/Sub
+@onready var _convoy: ColorRect = $Convoy
+@onready var _pin: TextureRect = $Pin
+@onready var _pin_false: TextureRect = $PinFalse
 
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	Game.changed.connect(queue_redraw)
+	Game.changed.connect(_refresh)
+	resized.connect(_refresh)
+	if _pin:
+		_pin.texture = Icons.ui("pin")
+		_pin.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		_pin.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	if _pin_false:
+		_pin_false.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_refresh()
 
 
-func _process(_delta: float) -> void:
-	queue_redraw()
+func collect_marker_defs() -> Dictionary:
+	var out: Dictionary = {}
+	var folder := get_node_or_null("Markers")
+	if folder == null:
+		return out
+	for child in folder.get_children():
+		if not child.has_method("to_node_def"):
+			continue
+		var nid := str(child.get("node_id"))
+		if nid == "":
+			continue
+		out[nid] = child.to_node_def()
+	return out
 
 
-func _draw() -> void:
-	if Game.NODES.is_empty():
+func _refresh() -> void:
+	if _bg:
+		_bg.color = Palette.INK
+	if _dust:
+		var dust_vis: float = Game.dust
+		if Game.level_kind == "tutorial":
+			_dust.visible = false
+		else:
+			_dust.visible = true
+			if Game.phase == Game.Phase.EPILOGUE or Game.phase == Game.Phase.SUMMARY:
+				dust_vis = minf(dust_vis, 0.35)
+			_dust.color = Color(Palette.DUST_DIM, 0.35 + dust_vis * 0.25)
+			_dust.offset_right = -size.x * (1.0 - (0.10 + dust_vis * 0.42))
+	if _title:
+		_title.text = "СХЕМА ТРАССЫ"
+		_title.add_theme_color_override("font_color", Palette.PAPER_DIM)
+	if _open:
+		_open.text = "открыто %d/%d" % [Game.map_territories.size(), Game.NODES.size() if not Game.NODES.is_empty() else 4]
+		_open.add_theme_color_override("font_color", Palette.PAPER_DIM)
+	if _sub:
+		if not Game.antenna_alive:
+			_sub.text = "АНТЕННА МОЛЧИТ — КАРТА ВРЁТ"
+			_sub.add_theme_color_override("font_color", Palette.RUST)
+		elif Game.chapter_title != "":
+			_sub.text = Game.chapter_title
+			_sub.add_theme_color_override("font_color", Palette.PAPER_DIM)
+		elif Game.phase == Game.Phase.EPILOGUE or Game.phase == Game.Phase.SUMMARY:
+			_sub.text = "МАЧТА ЖИВА — ПЫЛЬ СТОИТ"
+			_sub.add_theme_color_override("font_color", Palette.CRT)
+		else:
+			_sub.text = "развилка: Соль = плешь · Кольца = дворы"
+			_sub.add_theme_color_override("font_color", Palette.PAPER_DIM)
+	_layout_convoy()
+	_layout_pins()
+	var edges := get_node_or_null("Edges")
+	if edges:
+		for e in edges.get_children():
+			if e.has_method("refresh"):
+				e.refresh()
+
+
+func _layout_convoy() -> void:
+	if _convoy == null or Game.NODES.is_empty():
 		return
-	var r := Rect2(Vector2.ZERO, size)
-	draw_rect(r, Palette.INK)
-	if Game.level_kind != "tutorial":
-		_draw_dust(r)
-	_draw_edges()
-	_draw_nodes()
-	_draw_convoy()
-	_draw_pin()
-	_draw_frame(r)
-
-
-func _draw_dust(r: Rect2) -> void:
-	var dust_vis: float = Game.dust
-	if Game.phase == Game.Phase.EPILOGUE or Game.phase == Game.Phase.SUMMARY:
-		dust_vis = minf(dust_vis, 0.35)
-	var w: float = r.size.x * (0.10 + dust_vis * 0.42)
-	var pts := PackedVector2Array()
-	pts.append(Vector2(0, 0))
-	var steps := 14
-	for i in steps + 1:
-		var y: float = r.size.y * float(i) / float(steps)
-		var jag: float = sin(y * 0.04 + dust_vis * 8.0) * 10.0
-		pts.append(Vector2(w + jag, y))
-	pts.append(Vector2(0, r.size.y))
-	draw_colored_polygon(pts, Color(Palette.DUST_DIM, 0.35 + dust_vis * 0.25))
-	draw_line(Vector2(w, 0), Vector2(w - 6, r.size.y), Color(Palette.DUST, 0.45), 2.0)
-
-
-func _draw_edges() -> void:
-	for e in Game.EDGES:
-		var a: Vector2 = _pt(str(e[0]))
-		var b: Vector2 = _pt(str(e[1]))
-		draw_line(a, b, Color(Palette.STEEL, 0.45), 2.0)
-		var mid: Vector2 = a.lerp(b, 0.5)
-		var to_id: String = str(e[1])
-		if to_id == "gas":
-			_stamp("плешь", mid + Vector2(-18, -12), Palette.PAPER_DIM)
-		elif to_id == "reshetka":
-			_stamp("дворы", mid + Vector2(-18, -12), Palette.PAPER_DIM)
-
-
-func _draw_nodes() -> void:
-	for id in Game.NODES.keys():
-		var p: Vector2 = _pt(id)
-		var heat: float = Game.heat_of(id)
-		var show_heat: bool = Game.antenna_alive
-		if show_heat and heat > 0.35:
-			draw_circle(p, 22.0 + heat * 10.0, Color(Palette.DUST, 0.16 + heat * 0.12))
-		elif show_heat and heat < 0.12:
-			draw_circle(p, 20.0, Color(Palette.JAM, 0.22))
-		var fill := Palette.INK_RAISED
-		if id == Game.current_node:
-			fill = Palette.INK_RAISED.lightened(0.08)
-		if id == _hover:
-			fill = fill.lightened(0.1)
-		var icon := Icons.node_icon(id)
-		if not Icons.blit(self, icon, Rect2(p - Vector2(16, 16), Vector2(32, 32))):
-			draw_circle(p, 11.0, fill)
-			var ring := Palette.PAPER_DIM
-			if id == "tower14":
-				ring = Palette.CRT
-			elif id == Game.dest_node:
-				ring = Palette.AMBER
-			draw_arc(p, 11.0, 0.0, TAU, 28, ring, 2.0)
-		if id == "tower14":
-			draw_circle(p + Vector2(0, -18), 4.0, Palette.CRT)
-		if id == Game.dest_node:
-			draw_arc(p, 20.0, 0.0, TAU, 28, Palette.AMBER, 2.0)
-		if Game.phase == Game.Phase.STOP and not Game.force_dests.is_empty():
-			if Game.force_dests.has(id):
-				draw_arc(p, 24.0, 0.0, TAU, 28, Palette.CRT, 2.0)
-			elif id in ["gas", "reshetka"]:
-				draw_circle(p, 14.0, Color(Palette.JAM, 0.35))
-		var title: String = str(Game.NODES[id]["title"])
-		_stamp(title, p + Vector2(20, -6), Palette.PAPER)
-
-
-func _draw_convoy() -> void:
 	var p: Vector2 = _map(Game.convoy_pos())
-	draw_rect(Rect2(p - Vector2(9, 5), Vector2(18, 10)), Palette.AMBER)
-	draw_rect(Rect2(p - Vector2(9, 5), Vector2(18, 10)), Palette.INK, false, 1.0)
+	_convoy.position = p - Vector2(9, 5)
+	_convoy.size = Vector2(18, 10)
+	_convoy.color = Palette.AMBER
 
 
-func _draw_pin() -> void:
-	if Game.active_call.is_empty():
+func _layout_pins() -> void:
+	if _pin == null:
+		return
+	if Game.active_call.is_empty() or Game.NODES.is_empty():
+		_pin.visible = false
+		if _pin_false:
+			_pin_false.visible = false
 		return
 	var nid := str(Game.active_call.get("node", ""))
-	if nid == "" or not Game.NODES.has(nid):
+	if nid == "" or not Game.NODES.has(nid) or not Game.territory_visible(nid):
+		_pin.visible = false
 		return
-	var false_id := Game.false_pin_id()
-	if false_id != "" and Game.NODES.has(false_id):
-		var fp: Vector2 = _pt(false_id) + Vector2(0, -30)
-		draw_circle(fp, 6.0, Color(Palette.JAM, 0.55 + 0.25 * sin(Time.get_ticks_msec() * 0.01)))
-		_stamp("?", fp + Vector2(10, -4), Palette.JAM)
-	var p: Vector2 = _pt(nid) + Vector2(0, -30)
-	var pulse: float = 0.55 + 0.45 * sin(Time.get_ticks_msec() * 0.008)
-	var pin_col := Palette.CRT if bool(Game.active_call.get("epilogue", false)) else Palette.AMBER
-	var pin := Icons.ui("pin")
-	if not Icons.blit(self, pin, Rect2(p - Vector2(10, 10), Vector2(20, 20))):
-		draw_circle(p, 6.0, Color(pin_col, pulse))
-	else:
-		draw_circle(p, 3.0, Color(pin_col, pulse * 0.5))
-
-
-func _draw_frame(r: Rect2) -> void:
-	draw_rect(r, Palette.STEEL, false, 1.0)
-	_stamp("СХЕМА ТРАССЫ", Vector2(12, 10), Palette.PAPER_DIM)
-	if not Game.antenna_alive:
-		_stamp("АНТЕННА МОЛЧИТ — КАРТА ВРЁТ", Vector2(12, 28), Palette.RUST)
-	elif Game.phase == Game.Phase.STOP:
-		_stamp("развилка: Соль = плешь · Кольца = дворы", Vector2(12, 28), Palette.PAPER_DIM)
-	elif Game.phase == Game.Phase.EPILOGUE or Game.phase == Game.Phase.SUMMARY:
-		_stamp("МАЧТА ЖИВА — ПЫЛЬ СТОИТ", Vector2(12, 28), Palette.CRT)
-
-
-func _gui_input(event: InputEvent) -> void:
-	if event is InputEventMouseMotion:
-		_hover = _hit(event.position)
-		queue_redraw()
-	elif event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
-		if Game.phase != Game.Phase.STOP:
-			return
-		var id := _hit(event.position)
-		if id != "":
-			Game.choose_dest(id)
-
-
-func _hit(mouse: Vector2) -> String:
-	for id in Game.NODES.keys():
-		if mouse.distance_to(_pt(id)) <= 22.0:
-			return id
-	return ""
+	_pin.visible = true
+	var p: Vector2 = _pt(nid) + Vector2(-10, -40)
+	_pin.position = p
+	_pin.size = Vector2(20, 20)
+	_pin.modulate = Palette.CRT if bool(Game.active_call.get("epilogue", false)) else Palette.AMBER
+	if _pin_false:
+		var false_id := Game.false_pin_id()
+		if false_id != "" and Game.NODES.has(false_id) and Game.territory_visible(false_id):
+			_pin_false.visible = true
+			_pin_false.position = _pt(false_id) + Vector2(-8, -40)
+			_pin_false.size = Vector2(16, 16)
+			_pin_false.modulate = Palette.JAM
+		else:
+			_pin_false.visible = false
 
 
 func _pt(id: String) -> Vector2:
@@ -156,7 +125,3 @@ func _pt(id: String) -> Vector2:
 
 func _map(n: Vector2) -> Vector2:
 	return Vector2(n.x * size.x, n.y * size.y)
-
-
-func _stamp(text: String, pos: Vector2, color: Color) -> void:
-	draw_string(ThemeDB.fallback_font, pos, text, HORIZONTAL_ALIGNMENT_LEFT, -1, 13, color)

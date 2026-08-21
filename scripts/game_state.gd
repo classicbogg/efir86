@@ -7,21 +7,27 @@ signal phase_changed
 signal arrived(node_id: String)
 signal demo_finished
 signal summary_ready
-signal level_loaded(level_id: int)
+signal chapter_loaded(chapter_id: int)
+signal level_loaded(chapter_id: int) ## совместимость
 
 enum Phase { STOP, HAUL, TOWER, EPILOGUE, SUMMARY }
 
 var NODES: Dictionary = {}
 var EDGES: Array = []
 
-var level_id: int = -1
-var level_kind: String = "night"
+var chapter_id: int = -1
+var level_id: int = -1 ## alias chapter_id
+var chapter_title: String = ""
+var level_kind: String = "story"
 var finish_node: String = "tower14"
 var cards: Array = []
+var roster_cards: Array = []
 var route_calls: Dictionary = {}
 var force_dests: Array = []
+var playable_from_quarry: Array = []
 var skip_second_call: bool = false
 var epilogue_max: int = 3
+var map_territories: Array[String] = []
 
 ## Пустой массив = все действия разрешены. Иначе только перечисленные.
 ## Примеры: pick_card, pick_card:wet_rag, choose_dest, choose_dest:reshetka,
@@ -52,6 +58,8 @@ var fork_choice: String = ""
 var trucks: Array[String] = []
 var tokens: Array[Dictionary] = []
 var svyaznoy_onboard: bool = false
+## После клика по механику / M: следующий клик по вышке = ремонт.
+var pending_mechanic_send: bool = false
 
 var active_call: Dictionary = {}
 var call_timer: float = 0.0
@@ -72,33 +80,47 @@ var rust_notches: int = 0
 var demo_over: bool = false
 var summary_lines: PackedStringArray = PackedStringArray()
 var level_ready: bool = false
-var pending_level_id: int = -1
+var card_override: Array = []
+var pending_chapter_id: int = -1
+var pending_level_id: int = -1 ## alias
 
 
 func _ready() -> void:
 	pass
 
 
-func load_level(id: int) -> bool:
-	var def: Dictionary = Relay.catalog().get_level(id)
+func load_chapter(id: int) -> bool:
+	var def: Dictionary = Relay.catalog().get_chapter(id)
 	if def.is_empty():
-		push_error("Unknown level %s" % id)
+		push_error("Unknown chapter %s" % id)
 		return false
 	reset_from_scenario(def)
 	return true
 
 
+func load_level(id: int) -> bool:
+	return load_chapter(id)
+
+
 func reset_from_scenario(def: Dictionary) -> void:
-	level_id = int(def.get("id", -1))
-	level_kind = str(def.get("kind", "night"))
+	chapter_id = int(def.get("id", -1))
+	level_id = chapter_id
+	chapter_title = str(def.get("title", ""))
+	level_kind = str(def.get("kind", "story"))
 	var sc: Dictionary = def.get("scenario", {})
 
-	NODES = (sc.get("nodes", {}) as Dictionary).duplicate(true)
-	EDGES = (sc.get("edges", []) as Array).duplicate(true)
+	NODES = ChapterData.world_nodes().duplicate(true)
+	map_territories = (Relay.progress().map_territories as Array).duplicate()
+	EDGES = _edges_for_visible_territories()
+	## Перекрыть координаты/метаданные точками из редактора (RouteMap/Markers), если они есть.
+	_pull_editor_map_markers()
 	finish_node = str(sc.get("finish_node", "tower14"))
 	cards = (sc.get("cards", []) as Array).duplicate(true)
+	roster_cards = ChapterData.roster_cards().duplicate(true)
+	card_override.clear()
 	route_calls = (sc.get("route_calls", {}) as Dictionary).duplicate(true)
 	force_dests = (sc.get("force_dests", []) as Array).duplicate()
+	playable_from_quarry = (sc.get("playable_from_quarry", ["gas", "reshetka"]) as Array).duplicate()
 	skip_second_call = bool(sc.get("skip_second_call", false))
 	epilogue_max = int(sc.get("epilogue_max", 3))
 
@@ -125,8 +147,13 @@ func reset_from_scenario(def: Dictionary) -> void:
 		trucks.append(str(t))
 	tokens.clear()
 	for tok in sc.get("tokens", []):
-		tokens.append((tok as Dictionary).duplicate(true))
+		tokens.append(_normalize_token(tok as Dictionary))
 	svyaznoy_onboard = false
+	pending_mechanic_send = false
+	## Демо фазы 1: глава 3 без станции — механик уже доступен.
+	if chapter_id == 3:
+		Relay.progress().grant_mechanic()
+	_ensure_mechanic_token()
 
 	active_call = {}
 	call_timer = 0.0
@@ -153,10 +180,276 @@ func reset_from_scenario(def: Dictionary) -> void:
 	level_ready = true
 
 	_log("Смена открыта. Позывная общая. Лица нет.")
-	Relay.progress().set_last_played(level_id)
-	emit_signal("level_loaded", level_id)
+	Relay.progress().set_current_chapter(chapter_id)
+	emit_signal("chapter_loaded", chapter_id)
+	emit_signal("level_loaded", chapter_id)
 	emit_signal("phase_changed")
 	emit_signal("changed")
+
+
+func apply_editor_markers(defs: Dictionary) -> void:
+	if defs.is_empty():
+		return
+	for id in defs.keys():
+		NODES[id] = (defs[id] as Dictionary).duplicate(true)
+	EDGES = _edges_for_visible_territories()
+	emit_signal("changed")
+
+
+func _pull_editor_map_markers() -> void:
+	var tree := Engine.get_main_loop() as SceneTree
+	if tree == null:
+		return
+	var map := tree.root.find_child("RouteMap", true, false)
+	if map == null or not map.has_method("collect_marker_defs"):
+		return
+	var defs: Dictionary = map.collect_marker_defs()
+	if defs.is_empty():
+		return
+	for id in defs.keys():
+		NODES[id] = (defs[id] as Dictionary).duplicate(true)
+	EDGES = _edges_for_visible_territories()
+
+
+func territory_visible(node_id: String) -> bool:
+	return map_territories.has(node_id)
+
+
+func territory_playable(node_id: String) -> bool:
+	if not territory_visible(node_id):
+		return false
+	if current_node == "quarry" and phase == Phase.STOP:
+		return playable_from_quarry.has(node_id)
+	return true
+
+
+func _edges_for_visible_territories() -> Array:
+	var out: Array = []
+	for e in ChapterData.world_edges():
+		if map_territories.has(str(e[0])) and map_territories.has(str(e[1])):
+			out.append(e)
+	return out
+
+
+func reveal_territory(node_id: String) -> void:
+	if map_territories.has(node_id):
+		return
+	map_territories.append(node_id)
+	map_territories.sort_custom(func(a, b): return _territory_order(a) < _territory_order(b))
+	EDGES = _edges_for_visible_territories()
+	_log("На схеме: %s." % _title_of(node_id))
+	emit_signal("changed")
+
+
+static func _territory_order(node_id: String) -> int:
+	match node_id:
+		"quarry":
+			return 0
+		"reshetka":
+			return 1
+		"gas":
+			return 2
+		"tower14":
+			return 3
+		_:
+			return 99
+
+
+func set_card_override(deck: Array) -> void:
+	card_override = deck.duplicate(true)
+	emit_signal("changed")
+
+
+func clear_card_override() -> void:
+	card_override.clear()
+	emit_signal("changed")
+
+
+func _normalize_token(src: Dictionary) -> Dictionary:
+	var tok: Dictionary = src.duplicate(true)
+	if not tok.has("job"):
+		tok["job"] = "none"
+	if not tok.has("job_target"):
+		tok["job_target"] = ""
+	if not tok.has("job_progress"):
+		tok["job_progress"] = 0.0
+	if not tok.has("busy"):
+		tok["busy"] = false
+	if not tok.has("progress"):
+		tok["progress"] = 0.0
+	if not tok.has("target"):
+		tok["target"] = ""
+	return tok
+
+
+func _mechanic_token_template() -> Dictionary:
+	return {
+		"id": "mechanic",
+		"title": "Механик",
+		"glyph": "Мх",
+		"busy": false,
+		"progress": 0.0,
+		"target": "",
+		"job": "none",
+		"job_target": "",
+		"job_progress": 0.0,
+	}
+
+
+func _ensure_mechanic_token() -> void:
+	if not Relay.progress().has_mechanic:
+		return
+	if not _token("mechanic").is_empty():
+		return
+	tokens.append(_mechanic_token_template())
+
+
+func grant_mechanic_dev() -> void:
+	var newly: bool = bool(Relay.progress().grant_mechanic())
+	_ensure_mechanic_token()
+	if newly:
+		status_line = "Механик в ленте (dev). Кликни Мх, потом вышку."
+		_log("Механик разблокирован.")
+	else:
+		status_line = "Механик уже есть. Кликни Мх → вышка, или N у настроенной."
+	emit_signal("changed")
+
+
+func begin_mechanic_send() -> void:
+	if not Relay.progress().has_mechanic:
+		status_line = "Механика нет. Dev: M. Потом — станция."
+		emit_signal("changed")
+		return
+	_ensure_mechanic_token()
+	if not has_free_mechanic():
+		status_line = "Механик занят ремонтом."
+		emit_signal("changed")
+		return
+	pending_mechanic_send = true
+	status_line = "Куда слать механика? Кликни вышку на схеме."
+	emit_signal("changed")
+
+
+func has_free_mechanic() -> bool:
+	var tok := _token("mechanic")
+	if tok.is_empty():
+		return false
+	return str(tok.get("job", "none")) == "none" and not bool(tok.get("busy", false))
+
+
+func _is_tower_node(node_id: String) -> bool:
+	if not NODES.has(node_id):
+		return false
+	return str(NODES[node_id].get("kind", "")) == "tower"
+
+
+func tower_needs_repair(node_id: String) -> bool:
+	if not _is_tower_node(node_id):
+		return false
+	if not bool(NODES[node_id].get("needs_repair", false)):
+		return false
+	return not Relay.progress().is_tower_repair_done(node_id)
+
+
+func can_configure_tower(node_id: String) -> bool:
+	if not _is_tower_node(node_id):
+		return false
+	if Relay.progress().is_tower_config_done(node_id):
+		return false
+	if bool(NODES[node_id].get("needs_repair", false)) and not Relay.progress().is_tower_repair_done(node_id):
+		return false
+	return true
+
+
+func tower_status_label(node_id: String) -> String:
+	if not _is_tower_node(node_id):
+		return ""
+	if Relay.progress().is_tower_config_done(node_id):
+		return "настроена"
+	var mech := _token("mechanic")
+	if not mech.is_empty() and str(mech.get("job", "")) == "repair" and str(mech.get("job_target", "")) == node_id:
+		return "чинит %d%%" % int(float(mech.get("job_progress", 0.0)) * 100.0)
+	if tower_needs_repair(node_id):
+		return "нужен ремонт"
+	if can_configure_tower(node_id):
+		return "к настройке"
+	return ""
+
+
+func try_send_mechanic_to(tower_id: String) -> bool:
+	pending_mechanic_send = false
+	if not _is_tower_node(tower_id):
+		status_line = "Сюда механика не шлём — только вышка."
+		emit_signal("changed")
+		return true
+	if not territory_visible(tower_id):
+		status_line = "Вышки ещё нет на схеме."
+		emit_signal("changed")
+		return true
+	if not tower_needs_repair(tower_id):
+		status_line = "Этой вышке ремонт не нужен."
+		emit_signal("changed")
+		return true
+	if not has_free_mechanic():
+		status_line = "Нет свободного механика."
+		emit_signal("changed")
+		return true
+	var tok := _token("mechanic")
+	tok["job"] = "repair"
+	tok["job_target"] = tower_id
+	tok["job_progress"] = 0.0
+	tok["busy"] = true
+	tok["progress"] = 0.0
+	tok["target"] = tower_id
+	_token_set("mechanic", tok)
+	status_line = "Механик уехал на %s. Ремонт сам." % _title_of(tower_id)
+	_log("Механик → %s." % tower_id)
+	emit_signal("changed")
+	return true
+
+
+func _finish_mechanic_repair(token_id: String, tower_id: String) -> void:
+	var tok := _token(token_id)
+	tok["job"] = "none"
+	tok["job_target"] = ""
+	tok["job_progress"] = 0.0
+	tok["busy"] = false
+	tok["progress"] = 0.0
+	tok["target"] = ""
+	_token_set(token_id, tok)
+	Relay.progress().set_tower_repair_done(tower_id, true)
+	status_line = "Ремонт %s готов. Механик в ленте. Настрой вышку (N / клик)." % _title_of(tower_id)
+	_log("Ремонт %s закрыт." % tower_id)
+	emit_signal("changed")
+
+
+func configure_tower(tower_id: String) -> void:
+	if phase != Phase.STOP:
+		return
+	if current_node != tower_id:
+		status_line = "Настройка — только стоя у вышки."
+		emit_signal("changed")
+		return
+	if not can_configure_tower(tower_id):
+		if tower_needs_repair(tower_id):
+			status_line = "Сначала ремонт. Кликни Мх, потом вышку."
+		else:
+			status_line = "Эта вышка уже настроена."
+		emit_signal("changed")
+		return
+	## Фаза 1: заглушка без мини-игры — всегда успех.
+	Relay.progress().set_tower_config_done(tower_id, true)
+	var unlocks: Array = NODES[tower_id].get("unlocks_on_config", []) as Array
+	for tid in unlocks:
+		var sid := str(tid)
+		if not map_territories.has(sid):
+			reveal_territory(sid)
+		Relay.progress().unlock_territory(sid)
+	status_line = "Вышка %s настроена." % _title_of(tower_id)
+	_log("Настройка %s." % tower_id)
+	emit_signal("changed")
+	if tower_id == finish_node and _is_tower_node(tower_id):
+		_enter_tower()
 
 
 func set_allowed_actions(actions: Array) -> void:
@@ -216,6 +509,7 @@ func _process(delta: float) -> void:
 		emit_signal("changed")
 		return
 	if phase == Phase.STOP:
+		_tick_repair_jobs(delta)
 		if breath_left > 0.0:
 			breath_left = maxf(0.0, breath_left - delta)
 		elif level_kind != "tutorial":
@@ -238,6 +532,7 @@ func _process(delta: float) -> void:
 			if call_timer <= 0.0:
 				_fail_call_timeout()
 		_tick_tokens(delta)
+		_tick_repair_jobs(delta)
 		if dest_node != "":
 			var speed := haul_speed * (0.78 if picked_card == "wet_rag" else 1.0)
 			if chosen_road == "yards":
@@ -333,16 +628,31 @@ func pick_card(card_id: String) -> void:
 func choose_dest(node_id: String) -> void:
 	if phase != Phase.STOP:
 		return
+	## Клик по текущей вышке: настройка, если готова.
+	if node_id == current_node and can_configure_tower(node_id):
+		configure_tower(node_id)
+		return
+	## Режим «послать механика» (клик по Мх / клавиша M).
+	if pending_mechanic_send:
+		try_send_mechanic_to(node_id)
+		return
 	if not action_allowed_param("choose_dest", node_id):
 		status_line = "Сейчас учим другой шаг / другую дорогу."
 		emit_signal("changed")
 		return
-	if not force_dests.is_empty() and not force_dests.has(node_id):
-		status_line = "В этом срезе едем через %s." % _title_of(str(force_dests[0]))
+	if not territory_playable(node_id):
+		if not territory_visible(node_id):
+			status_line = "Этой точки ещё нет на схеме. Пройди предыдущую главу."
+		else:
+			status_line = "Сюда в этой главе не едем."
 		emit_signal("changed")
 		return
-	if current_node == "quarry" and node_id not in ["gas", "reshetka"]:
-		status_line = "С карьера только Соль (плешь) или Кольца (дворы)."
+	if not force_dests.is_empty() and not force_dests.has(node_id):
+		status_line = "В этой главе едем через %s." % _title_of(str(force_dests[0]))
+		emit_signal("changed")
+		return
+	if current_node == "quarry" and node_id not in playable_from_quarry:
+		status_line = "С карьера сейчас доступно: %s." % _dest_list(playable_from_quarry)
 		emit_signal("changed")
 		return
 	if picked_card == "":
@@ -359,6 +669,7 @@ func choose_dest(node_id: String) -> void:
 	call_fired = false
 	phase = Phase.HAUL
 	plomb_locked = true
+	pending_mechanic_send = false
 	var road_hint := "плешь — колёса и глухота" if chosen_road == "plesh" else "дворы — люди и эфир"
 	status_line = "Поехали на %s (%s). Рычаг А/Б — 1 и 2." % [NODES[node_id]["title"], road_hint]
 	_log("Выехали на %s." % NODES[node_id]["title"])
@@ -407,6 +718,9 @@ func refuse_epilogue() -> void:
 
 
 func dispatch(token_id: String) -> void:
+	if token_id == "mechanic" and active_call.is_empty():
+		begin_mechanic_send()
+		return
 	if not action_allowed_param("dispatch", token_id):
 		status_line = "Не те руки. Обучение ждёт другую фишку."
 		emit_signal("changed")
@@ -420,7 +734,9 @@ func dispatch(token_id: String) -> void:
 		emit_signal("changed")
 		return
 	var tok := _token(token_id)
-	if tok.is_empty() or bool(tok["busy"]):
+	if tok.is_empty() or bool(tok["busy"]) or str(tok.get("job", "none")) != "none":
+		status_line = "Эти руки заняты другой работой."
+		emit_signal("changed")
 		return
 	var need: String = str(active_call.get("need", "tech"))
 	tok["busy"] = true
@@ -447,8 +763,8 @@ func acknowledge_summary() -> void:
 			emit_signal("changed")
 			return
 	demo_over = true
-	status_line = "Ночь закрыта. Между ночами пока ничего не копим."
-	Relay.progress().mark_cleared(level_id)
+	status_line = "Глава закрыта."
+	Relay.progress().mark_chapter_cleared(chapter_id)
 	emit_signal("demo_finished")
 	emit_signal("changed")
 
@@ -469,12 +785,32 @@ func false_pin_id() -> String:
 func _tick_tokens(delta: float) -> void:
 	for i in tokens.size():
 		var tok: Dictionary = tokens[i]
+		if str(tok.get("job", "none")) != "none":
+			continue
 		if not bool(tok["busy"]):
 			continue
 		tok["progress"] = minf(1.0, float(tok["progress"]) + delta * 0.35)
 		tokens[i] = tok
 		if float(tok["progress"]) >= 1.0:
 			_resolve_dispatch(str(tok["id"]))
+
+
+func _tick_repair_jobs(delta: float) -> void:
+	for i in tokens.size():
+		var tok: Dictionary = tokens[i]
+		if str(tok.get("job", "none")) != "repair":
+			continue
+		var tower_id := str(tok.get("job_target", ""))
+		var duration := 8.0
+		if NODES.has(tower_id):
+			duration = maxf(0.5, float(NODES[tower_id].get("repair_duration", 8.0)))
+		var rate := 1.0 / duration
+		tok["job_progress"] = minf(1.0, float(tok.get("job_progress", 0.0)) + delta * rate)
+		tok["busy"] = true
+		tok["progress"] = float(tok["job_progress"])
+		tokens[i] = tok
+		if float(tok["job_progress"]) >= 1.0:
+			_finish_mechanic_repair(str(tok["id"]), tower_id)
 
 
 func _resolve_dispatch(token_id: String) -> void:
@@ -564,8 +900,13 @@ func _arrive() -> void:
 	if not visited.has(current_node):
 		visited.append(current_node)
 	emit_signal("arrived", current_node)
+	if level_kind == "tutorial" and current_node == "reshetka" and finish_node == "tower14":
+		reveal_territory("tower14")
 	if current_node == finish_node:
-		_enter_tower()
+		if _is_tower_node(finish_node):
+			_arrive_at_tower_finish(finish_node)
+		else:
+			_finish_chapter_at(finish_node)
 		return
 	dest_node = finish_node
 	chosen_road = "mast"
@@ -577,6 +918,35 @@ func _arrive() -> void:
 	]
 	_log("Промежуточная. Курс на %s." % finish_node)
 	emit_signal("changed")
+
+
+func _arrive_at_tower_finish(tower_id: String) -> void:
+	phase = Phase.STOP
+	## Обучение: механик сразу, чтобы не застрять без станции (фаза 2).
+	if level_kind == "tutorial":
+		Relay.progress().grant_mechanic()
+		_ensure_mechanic_token()
+	if tower_needs_repair(tower_id):
+		status_line = "Вышка ждёт ремонт. Кликни механика (Мх), потом точку — или M."
+		_log("Вышка %s: нужен механик." % tower_id)
+		emit_signal("phase_changed")
+		emit_signal("changed")
+		return
+	if can_configure_tower(tower_id):
+		status_line = "Вышка готова к настройке. Кликни точку или N."
+		_log("Вышка %s: настройка." % tower_id)
+		emit_signal("phase_changed")
+		emit_signal("changed")
+		return
+	## Уже настроена (сейв) — сразу эфир под мачтой.
+	_enter_tower()
+
+
+func _finish_chapter_at(node_id: String) -> void:
+	phase = Phase.SUMMARY
+	active_call = {}
+	status_line = "Глава закрыта у %s." % _title_of(node_id)
+	_build_summary()
 
 
 func _enter_tower() -> void:
@@ -674,34 +1044,31 @@ func _build_summary() -> void:
 	phase = Phase.SUMMARY
 	active_call = {}
 	summary_lines = PackedStringArray()
+	var def: Dictionary = ChapterData.get_chapter(chapter_id)
 	if level_kind == "tutorial":
 		summary_lines.append("ОБУЧЕНИЕ ЗАКРЫТО")
-		summary_lines.append("Ты услышал: накладная, развилка, рычаг, вызов, фишка, мачта.")
-		summary_lines.append("Уровень 1 открыт — Карьер → 14.")
-		summary_lines.append("Кликни лист — к выборке уровней.")
+		summary_lines.append("Ты услышал: лента, накладная, рычаг, вызов, фишка, мачта.")
+		summary_lines.append("На схеме открылся посёлок Кольца.")
+		summary_lines.append("Дальше — глава 1.")
 	else:
+		summary_lines.append(str(def.get("title", "ГЛАВА")))
 		var places: PackedStringArray = PackedStringArray()
 		for id in visited:
 			places.append(_title_of(id))
-		summary_lines.append("НАКЛАДНАЯ НОЧИ")
 		summary_lines.append("Проехал: %s" % ", ".join(places))
-		var road_label := "—"
-		if fork_choice == "plesh":
-			road_label = "плешь (Соль)"
-		elif fork_choice == "yards":
-			road_label = "дворы (Кольца)"
-		summary_lines.append("Дорога: %s" % road_label)
-		summary_lines.append("Стрелки: земля %.0f%% · свои %.0f%%" % [trust * 100.0, authority * 100.0])
-		summary_lines.append("Ржавые насечки: %d" % rust_notches)
-		summary_lines.append("Вызовы: закрыто %d · сорвано %d" % [calls_helped, calls_failed])
-		if epilogue_ignored:
-			summary_lines.append("Под мачтой: часть голосов осталась без ответа.")
-		else:
-			summary_lines.append("Под мачтой: услышал бытовые голоса.")
-		if svyaznoy_onboard:
-			summary_lines.append("Связной в ленте. Слух живой.")
-		summary_lines.append("Между ночами пока ничего не копим.")
-	status_line = "Лист итога. Кликни накладную, чтобы закрыть смену."
+		for tid in def.get("reveals_territories", []):
+			summary_lines.append("На схеме откроется: %s" % _title_of(str(tid)))
+		if finish_node == "tower14":
+			summary_lines.append("Стрелки: земля %.0f%% · свои %.0f%%" % [trust * 100.0, authority * 100.0])
+			summary_lines.append("Ржавые насечки: %d" % rust_notches)
+			summary_lines.append("Вызовы: закрыто %d · сорвано %d" % [calls_helped, calls_failed])
+			if epilogue_ignored:
+				summary_lines.append("Под мачтой: часть голосов осталась без ответа.")
+			else:
+				summary_lines.append("Под мачтой: услышал бытовые голоса.")
+			if svyaznoy_onboard:
+				summary_lines.append("Связной в ленте. Слух живой.")
+	status_line = "Лист итога. Кликни накладную — в меню."
 	if level_kind == "tutorial":
 		set_allowed_actions(["ack_summary"])
 	_log("Итог — накладная, не проценты.")
@@ -726,8 +1093,19 @@ func heat_of(id: String) -> float:
 
 func _title_of(id: String) -> String:
 	if NODES.has(id):
-		return str(NODES[id].get("title", id))
+		var title: String = str(NODES[id].get("title", id))
+		var sub: String = str(NODES[id].get("subtitle", ""))
+		if sub != "":
+			return "%s (%s)" % [title, sub]
+		return title
 	return id
+
+
+func _dest_list(ids: Array) -> String:
+	var names: PackedStringArray = PackedStringArray()
+	for id in ids:
+		names.append(_title_of(str(id)))
+	return ", ".join(names)
 
 
 func _token(id: String) -> Dictionary:

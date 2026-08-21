@@ -5,6 +5,7 @@ signal step_changed(step_id: String)
 
 enum Step {
 	INTRO,
+	ROSTER,
 	CARD,
 	PLOMB,
 	FORK,
@@ -22,23 +23,39 @@ var hint: String = ""
 var show_advance: bool = true
 var _shifted_once: bool = false
 var _send_clicked: bool = false
+var _waybills: Control = null
+@onready var _bar: Panel = $Bar
+@onready var _step_label: Label = $Bar/Step
+@onready var _hint_label: Label = $Bar/Hint
+@onready var _advance_label: Label = $Bar/Advance
+
+
+func _set_waybills_mouse_enabled(enabled: bool) -> void:
+	if _waybills == null:
+		return
+	_waybills.mouse_filter = Control.MOUSE_FILTER_STOP if enabled else Control.MOUSE_FILTER_IGNORE
 
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	set_anchors_preset(Control.PRESET_FULL_RECT)
 	visible = false
+	_waybills = get_tree().root.find_child("Waybills", true, false)
 	Game.level_loaded.connect(_on_level_loaded)
 	Game.changed.connect(_on_game_changed)
 	Game.call_changed.connect(_on_game_changed)
 	Game.phase_changed.connect(_on_game_changed)
 	Game.summary_ready.connect(_on_summary)
+	_refresh_bar()
 
 
 func _on_level_loaded(_id: int) -> void:
 	if Game.level_kind != "tutorial":
 		visible = false
+		if _bar:
+			_bar.visible = false
 		Game.clear_allowed_actions()
+		Game.clear_card_override()
 		return
 	visible = true
 	_shifted_once = false
@@ -56,32 +73,42 @@ func _on_game_changed() -> void:
 	if not visible or Game.level_kind != "tutorial":
 		return
 	_check_transitions()
-	queue_redraw()
+	_refresh_bar()
 
 
 func _enter(s: Step) -> void:
 	step = s
 	show_advance = false
+	# На шагах, где нужен клик по карте, панель накладных не должна перехватывать mouse_button.
+	_set_waybills_mouse_enabled(step == Step.CARD or step == Step.DONE)
 	match step:
 		Step.INTRO:
-			hint = "Ты смена на рации. Лица нет. Живое — только зелёная волна справа."
+			hint = "Одна схема — карьерный перегон. Сначала только карьер. Территории откроются по главам."
 			show_advance = true
+			Game.clear_card_override()
+			Game.set_allowed_actions(["advance"])
+		Step.ROSTER:
+			hint = "Лента, люди, будущие роли. Прочитай три карточки — это не накладные, а памятка."
+			show_advance = true
+			Game.set_card_override(Game.roster_cards)
 			Game.set_allowed_actions(["advance"])
 		Step.CARD:
-			hint = "На столе три накладные. Возьми ВЕЩЬ — ломает одно правило до утра."
+			hint = "Теперь настоящие накладные. Возьми ВЕЩЬ — ломает одно правило до утра."
+			Game.clear_card_override()
 			Game.set_allowed_actions(["pick_card:wet_rag"])
 		Step.PLOMB:
 			hint = "Лента под пломбой. P или клик по пломбе — сорви, сдвинь коробку. Или Space — дальше. (Пыль на обучении выключена.)"
 			show_advance = true
 			Game.set_allowed_actions(["toggle_plomb", "shift_truck", "advance"])
 		Step.FORK:
-			hint = "Соль = плешь (быстро, глухо). Кольца = дворы (люди и эфир). В обучении кликни Кольца."
+			hint = "На схеме открылся посёлок Кольца (дворы). Соль = плешь (быстро, глухо). Кликни Кольца."
+			Game.reveal_territory("reshetka")
 			Game.set_allowed_actions(["choose_dest:reshetka"])
 			if not Game.plomb_locked:
 				Game.plomb_locked = true
 				Game.emit_signal("changed")
 		Step.WAIT_CALL:
-			hint = "Едем. Жди вызов — пин на схеме. Пыль появится с первой настоящей ночи."
+			hint = "Едем. Жди вызов — пин на схеме. Пыль появится с первой настоящей ночью."
 			Game.clear_allowed_actions()
 		Step.FREQ:
 			hint = "Земля на Б. Рычаг 2 или клик B. Пока на А — ложная точка на карте."
@@ -100,11 +127,31 @@ func _enter(s: Step) -> void:
 			hint = "Мачта. Связной сел. Слова целые — Слушаю или Молчу."
 			Game.set_allowed_actions(["answer_0", "answer_1"])
 		Step.DONE:
-			hint = "Обучение закрыто. Кликни накладную итога — откроется уровень 1."
+			hint = "Обучение закрыто. Кликни накладную итога — откроется глава 1."
+			Game.clear_card_override()
 			Game.set_allowed_actions(["ack_summary"])
 	Game.status_line = hint
 	emit_signal("step_changed", str(step))
-	queue_redraw()
+	_refresh_bar()
+
+
+func _refresh_bar() -> void:
+	if _bar == null:
+		return
+	_bar.visible = visible and Game.level_kind == "tutorial"
+	if not _bar.visible:
+		return
+	_bar.add_theme_stylebox_override("panel", Palette.flat_style(Color(Palette.INK.r, Palette.INK.g, Palette.INK.b, 0.94), Palette.CRT_DIM, 2))
+	if _step_label:
+		_step_label.text = "ОБУЧЕНИЕ · шаг %d/10" % (_step_index() + 1)
+		_step_label.add_theme_color_override("font_color", Palette.CRT)
+	if _hint_label:
+		_hint_label.text = hint
+		_hint_label.add_theme_color_override("font_color", Palette.PAPER)
+	if _advance_label:
+		_advance_label.visible = show_advance
+		_advance_label.text = "Space — дальше"
+		_advance_label.add_theme_color_override("font_color", Palette.AMBER)
 
 
 func _check_transitions() -> void:
@@ -158,6 +205,8 @@ func _unhandled_input(event: InputEvent) -> void:
 func _advance() -> void:
 	match step:
 		Step.INTRO:
+			_enter(Step.ROSTER)
+		Step.ROSTER:
 			_enter(Step.CARD)
 		Step.PLOMB:
 			_enter(Step.FORK)
@@ -166,9 +215,7 @@ func _advance() -> void:
 
 
 func _process(_delta: float) -> void:
-	if not visible:
-		return
-	queue_redraw()
+	pass
 
 
 func notify_answer(button_i: int) -> void:
@@ -177,36 +224,26 @@ func notify_answer(button_i: int) -> void:
 		_check_transitions()
 
 
-func _draw() -> void:
-	if not visible:
-		return
-	var bar := Rect2(0, 58, size.x, 72)
-	draw_rect(bar, Color(Palette.INK.r, Palette.INK.g, Palette.INK.b, 0.94))
-	draw_line(Vector2(0, bar.end.y), Vector2(size.x, bar.end.y), Palette.CRT_DIM, 2.0)
-	draw_string(ThemeDB.fallback_font, Vector2(24, bar.position.y + 22), "ОБУЧЕНИЕ · шаг %d/9" % (_step_index() + 1), HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Palette.CRT)
-	draw_multiline_string(ThemeDB.fallback_font, Vector2(24, bar.position.y + 42), hint, HORIZONTAL_ALIGNMENT_LEFT, size.x - 48, 14, -1, Palette.PAPER)
-	if show_advance:
-		draw_string(ThemeDB.fallback_font, Vector2(size.x - 200, bar.position.y + 22), "Space — дальше", HORIZONTAL_ALIGNMENT_LEFT, -1, 13, Palette.AMBER)
-
-
 func _step_index() -> int:
 	match step:
 		Step.INTRO:
 			return 0
-		Step.CARD:
+		Step.ROSTER:
 			return 1
-		Step.PLOMB:
+		Step.CARD:
 			return 2
-		Step.FORK:
+		Step.PLOMB:
 			return 3
-		Step.WAIT_CALL, Step.FREQ:
+		Step.FORK:
 			return 4
-		Step.REASK:
+		Step.WAIT_CALL, Step.FREQ:
 			return 5
-		Step.SEND, Step.DISPATCH:
+		Step.REASK:
 			return 6
-		Step.EPILOGUE:
+		Step.SEND, Step.DISPATCH:
 			return 7
-		Step.DONE:
+		Step.EPILOGUE:
 			return 8
+		Step.DONE:
+			return 9
 	return 0

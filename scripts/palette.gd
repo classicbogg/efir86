@@ -48,3 +48,11 @@ static func truck_label(kind: String) -> String:
 			return "КУНГ"
 		_:
 			return kind.to_upper()
+
+
+static func flat_style(bg: Color, border: Color = Color(0, 0, 0, 0), border_w: float = 0.0) -> StyleBoxFlat:
+	var s := StyleBoxFlat.new()
+	s.bg_color = bg
+	s.set_border_width_all(int(border_w))
+	s.border_color = border
+	return s

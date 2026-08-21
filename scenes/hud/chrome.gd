@@ -1,50 +1,55 @@
 extends Control
+## Шапка: только биндинг Game → ноды. Визуал в сцене.
+
+@onready var _bg: ColorRect = $Bg
+@onready var _title: Label = $Title
+@onready var _sub: Label = $Sub
+@onready var _hour_fill: ColorRect = $HourBar/Fill
+@onready var _hour_label: Label = $HourBar/Label
+@onready var _trust_fill: ColorRect = $Trust/Fill
+@onready var _auth_fill: ColorRect = $Auth/Fill
 
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
-	Game.changed.connect(queue_redraw)
+	Game.changed.connect(_refresh)
+	_refresh()
 
 
-func _process(_delta: float) -> void:
-	queue_redraw()
-
-
-func _draw() -> void:
-	draw_rect(Rect2(Vector2.ZERO, size), Palette.INK)
-	draw_line(Vector2(0, size.y - 1), Vector2(size.x, size.y - 1), Palette.STEEL, 1.0)
-	_stamp("RELAY", Vector2(16, 14), Palette.PAPER)
+func _refresh() -> void:
+	if _bg:
+		_bg.color = Palette.INK
+	if _title:
+		_title.text = "RELAY"
+		_title.add_theme_color_override("font_color", Palette.PAPER)
 	var sub := "ночное радио колонны"
-	if Game.level_id == 0:
-		sub = "обучение · уровень 0"
-	elif Game.level_id >= 0:
-		sub = "уровень %d  ·  карьер → вышка 14" % Game.level_id
-	_stamp(sub, Vector2(16, 34), Palette.PAPER_DIM)
-	_hour_bar()
-	_needle("ЗЕМЛЯ", Game.trust, Palette.DUST, Vector2(size.x - 360, 10))
-	_needle("СВОИ", Game.authority, Palette.CRT, Vector2(size.x - 180, 10))
-
-
-func _hour_bar() -> void:
-	var rect := Rect2(300, 18, 220, 10)
-	draw_rect(rect, Palette.INK_RAISED)
-	draw_rect(Rect2(rect.position, Vector2(rect.size.x * Game.hour, rect.size.y)), Palette.DUST_DIM)
-	draw_rect(rect, Palette.STEEL, false, 1.0)
-	var label := "РАННЯЯ"
-	if Game.hour > 0.66:
-		label = "ПРЕДРАССВЕТ"
-	elif Game.hour > 0.33:
-		label = "ГЛУХАЯ"
-	_stamp(label, Vector2(300, 32), Palette.PAPER_DIM)
-
-
-func _needle(title: String, value: float, col: Color, pos: Vector2) -> void:
-	_stamp(title, pos, Palette.PAPER_DIM)
-	var rect := Rect2(pos + Vector2(0, 16), Vector2(150, 8))
-	draw_rect(rect, Palette.INK_RAISED)
-	draw_rect(Rect2(rect.position, Vector2(rect.size.x * clampf(value, 0, 1), rect.size.y)), col)
-	draw_rect(rect, Palette.STEEL, false, 1.0)
-
-
-func _stamp(text: String, pos: Vector2, color: Color) -> void:
-	draw_string(ThemeDB.fallback_font, pos, text, HORIZONTAL_ALIGNMENT_LEFT, -1, 14, color)
+	if Game.chapter_id == 0:
+		sub = "глава 0 · обучение"
+	elif Game.chapter_id >= 0:
+		sub = "%s  ·  %d/%d на схеме" % [
+			Game.chapter_title if Game.chapter_title != "" else "глава %d" % Game.chapter_id,
+			Game.map_territories.size(),
+			Game.NODES.size() if not Game.NODES.is_empty() else 4,
+		]
+	if _sub:
+		_sub.text = sub
+		_sub.add_theme_color_override("font_color", Palette.PAPER_DIM)
+	var hour_w := 220.0 * clampf(Game.hour, 0.0, 1.0)
+	if _hour_fill:
+		_hour_fill.custom_minimum_size.x = hour_w
+		_hour_fill.size.x = hour_w
+		_hour_fill.color = Palette.DUST_DIM
+	if _hour_label:
+		var label := "РАННЯЯ"
+		if Game.hour > 0.66:
+			label = "ПРЕДРАССВЕТ"
+		elif Game.hour > 0.33:
+			label = "ГЛУХАЯ"
+		_hour_label.text = label
+		_hour_label.add_theme_color_override("font_color", Palette.PAPER_DIM)
+	if _trust_fill:
+		_trust_fill.size.x = 150.0 * clampf(Game.trust, 0.0, 1.0)
+		_trust_fill.color = Palette.DUST
+	if _auth_fill:
+		_auth_fill.size.x = 150.0 * clampf(Game.authority, 0.0, 1.0)
+		_auth_fill.color = Palette.CRT

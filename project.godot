@@ -17,7 +17,7 @@ compatibility/default_parent_skeleton_in_mesh_instance_3d=true
 config/name="RELAY"
 config/description="Ночное радио колонны. Обучение + демо-срез."
 config/version="0.3.0-demo"
-run/main_scene="res://scenes/menu/LevelSelect.tscn"
+run/main_scene="res://intro.tscn"
 config/features=PackedStringArray("4.7", "GL Compatibility")
 config/icon="res://icon.svg"
 
@@ -26,11 +26,12 @@ config/icon="res://icon.svg"
 Progress="*res://scripts/progress.gd"
 LevelCatalog="*res://scripts/level_catalog.gd"
 Game="*res://scripts/game_state.gd"
+UiSfx="*res://ui/ui_sfx.gd"
 
 [display]
 
-window/size/viewport_width=1600
-window/size/viewport_height=900
+window/size/viewport_width=2560
+window/size/viewport_height=1440
 window/stretch/mode="canvas_items"
 window/stretch/aspect="expand"
 window/size/min_width=1100
