@@ -14,7 +14,19 @@
 [ext_resource type="Texture2D" uid="uid://c36qko3g0rp42" path="res://assets/icons/nodes/gas.png" id="9_hjnkw"]
 [ext_resource type="Texture2D" uid="uid://c3t6urxl8xxui" path="res://assets/icons/nodes/tower14.png" id="10_rikml"]
 [ext_resource type="Script" uid="uid://ctlxs1v8pc51x" path="res://scenes/radio/radio_wave.gd" id="10_wave"]
-[ext_resource type="Texture2D" uid="uid://dsu2dq7xmmo3i" path="res://assets/image/map_bg_city.png" id="11_mapbg"]
+[ext_resource type="Script" path="res://scenes/map/map_region.gd" id="17_region"]
+[ext_resource type="Texture2D" path="res://assets/image/map_bg_scheme.png" id="11_mapbg"]
+[ext_resource type="Shader" path="res://assets/shaders/scanlines.gdshader" id="12_scan"]
+[ext_resource type="Texture2D" uid="uid://bpji62aie3pk2" path="res://assets/icons/tokens/medic.png" id="13_medic"]
+[ext_resource type="Texture2D" uid="uid://ok1lmpgvgidm" path="res://assets/icons/tokens/tech.png" id="14_tech"]
+[ext_resource type="Texture2D" uid="uid://csko6lsvuee5f" path="res://assets/icons/tokens/radio.png" id="15_radio"]
+[ext_resource type="Texture2D" uid="uid://bq7wkwe2glcuo" path="res://assets/icons/tokens/guard.png" id="16_guard"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_scan"]
+shader = ExtResource("12_scan")
+shader_parameter/scan_opacity = 0.12
+shader_parameter/grain_opacity = 0.05
+shader_parameter/lines = 180.0
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_vc03v"]
 bg_color = Color(0, 0, 0, 0)
@@ -224,7 +236,7 @@ mouse_filter = 2
 color = Color(0.102, 0.086, 0.071, 1)
 
 [node name="CityMap" type="TextureRect" parent="Root/Body/MapCol/RouteMap" unique_id=493559474]
-modulate = Color(1, 1, 1, 0.85)
+modulate = Color(1, 1, 1, 1)
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -234,7 +246,7 @@ grow_vertical = 2
 mouse_filter = 2
 texture = ExtResource("11_mapbg")
 expand_mode = 1
-stretch_mode = 6
+stretch_mode = 5
 
 [node name="Dust" type="ColorRect" parent="Root/Body/MapCol/RouteMap" unique_id=1589652410]
 layout_mode = 1
@@ -246,6 +258,7 @@ mouse_filter = 2
 color = Color(0.541, 0.439, 0.282, 0.35)
 
 [node name="Edges" type="Control" parent="Root/Body/MapCol/RouteMap" unique_id=748315808]
+visible = false
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -363,6 +376,7 @@ theme_override_colors/font_color = Color(0.72156864, 0.6901961, 0.6431373, 1)
 theme_override_font_sizes/font_size = 12
 
 [node name="Markers" type="Control" parent="Root/Body/MapCol/RouteMap" unique_id=1043899139]
+visible = false
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -601,6 +615,171 @@ theme_override_colors/font_color = Color(0.72156864, 0.6901961, 0.6431373, 1)
 theme_override_font_sizes/font_size = 11
 text = "живая мачта"
 
+[node name="Regions" type="Control" parent="Root/Body/MapCol/RouteMap" unique_id=880000001]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="city" type="Control" parent="Root/Body/MapCol/RouteMap/Regions" unique_id=880000010]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("17_region")
+region_id = "city"
+title = "Город"
+polygon_uv = PackedVector2Array(0.29591, 0.40245, 0.09864, 0.53129, 0.00062, 0.99632, 0.17308, 0.94969, 0.17308, 0.93742, 0.23015, 0.69816, 0.23015, 0.69080, 0.23387, 0.68834, 0.23449, 0.67730, 0.29715, 0.41472)
+label_uv = Vector2(0.14541, 0.71552)
+
+[node name="Fill" type="Polygon2D" parent="Root/Body/MapCol/RouteMap/Regions/city" unique_id=880000011]
+color = Color(0.76862746, 0.64705884, 0.45490196, 0.1)
+
+[node name="Title" type="Label" parent="Root/Body/MapCol/RouteMap/Regions/city" unique_id=880000012]
+layout_mode = 0
+offset_right = 120.0
+offset_bottom = 20.0
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.9098039, 0.8784314, 0.83137256, 1)
+theme_override_font_sizes/font_size = 13
+text = "Город"
+horizontal_alignment = 1
+
+[node name="reshetka" type="Control" parent="Root/Body/MapCol/RouteMap/Regions" unique_id=880000020]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("17_region")
+region_id = "reshetka"
+title = "Решётка"
+polygon_uv = PackedVector2Array(0.40074, 0.33374, 0.29653, 0.40123, 0.29777, 0.41472, 0.23511, 0.67730, 0.23449, 0.68834, 0.23077, 0.69080, 0.23077, 0.69816, 0.17370, 0.93742, 0.17370, 0.94969, 0.47457, 0.86626, 0.47705, 0.68957)
+label_uv = Vector2(0.34339, 0.67920)
+
+[node name="Fill" type="Polygon2D" parent="Root/Body/MapCol/RouteMap/Regions/reshetka" unique_id=880000021]
+color = Color(0.16470589, 0.41568628, 0.28235295, 0.1)
+
+[node name="Title" type="Label" parent="Root/Body/MapCol/RouteMap/Regions/reshetka" unique_id=880000022]
+layout_mode = 0
+offset_right = 120.0
+offset_bottom = 20.0
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.9098039, 0.8784314, 0.83137256, 1)
+theme_override_font_sizes/font_size = 13
+text = "Решётка"
+horizontal_alignment = 1
+
+[node name="waste" type="Control" parent="Root/Body/MapCol/RouteMap/Regions" unique_id=880000030]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("17_region")
+region_id = "waste"
+title = "Пустырь"
+polygon_uv = PackedVector2Array(0.86663, 0.00000, 0.47457, 0.00123, 0.40136, 0.33129, 0.44603, 0.54110, 0.44789, 0.54479, 0.74069, 0.40859, 0.74628, 0.40000, 0.74876, 0.38528, 0.86538, 0.01595)
+label_uv = Vector2(0.60977, 0.23135)
+
+[node name="Fill" type="Polygon2D" parent="Root/Body/MapCol/RouteMap/Regions/waste" unique_id=880000031]
+color = Color(0.72156864, 0.6901961, 0.6431373, 0.1)
+
+[node name="Title" type="Label" parent="Root/Body/MapCol/RouteMap/Regions/waste" unique_id=880000032]
+layout_mode = 0
+offset_right = 120.0
+offset_bottom = 20.0
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.9098039, 0.8784314, 0.83137256, 1)
+theme_override_font_sizes/font_size = 13
+text = "Пустырь"
+horizontal_alignment = 1
+
+[node name="quarry" type="Control" parent="Root/Body/MapCol/RouteMap/Regions" unique_id=880000040]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("17_region")
+region_id = "quarry"
+title = "Карьер"
+polygon_uv = PackedVector2Array(0.73883, 0.41104, 0.72953, 0.41227, 0.44851, 0.54479, 0.44913, 0.55583, 0.47767, 0.68957, 0.47519, 0.86503, 0.61476, 0.82699, 0.61538, 0.80982, 0.73697, 0.42454)
+label_uv = Vector2(0.57773, 0.63620)
+
+[node name="Fill" type="Polygon2D" parent="Root/Body/MapCol/RouteMap/Regions/quarry" unique_id=880000041]
+color = Color(0.5411765, 0.4392157, 0.28235295, 0.1)
+
+[node name="Title" type="Label" parent="Root/Body/MapCol/RouteMap/Regions/quarry" unique_id=880000042]
+layout_mode = 0
+offset_right = 120.0
+offset_bottom = 20.0
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.9098039, 0.8784314, 0.83137256, 1)
+theme_override_font_sizes/font_size = 13
+text = "Карьер"
+horizontal_alignment = 1
+
+[node name="mountain" type="Control" parent="Root/Body/MapCol/RouteMap/Regions" unique_id=880000050]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("17_region")
+region_id = "mountain"
+title = "Горы"
+polygon_uv = PackedVector2Array(0.86725, 0.00000, 0.86600, 0.01595, 0.74938, 0.38528, 0.74690, 0.40123, 0.98759, 0.29202, 0.98945, 0.29939, 0.99628, 0.67117, 0.99938, 0.68221, 0.99938, 0.00000)
+label_uv = Vector2(0.90043, 0.20135)
+
+[node name="Fill" type="Polygon2D" parent="Root/Body/MapCol/RouteMap/Regions/mountain" unique_id=880000051]
+color = Color(0.5411765, 0.56078434, 0.5411765, 0.1)
+
+[node name="Title" type="Label" parent="Root/Body/MapCol/RouteMap/Regions/mountain" unique_id=880000052]
+layout_mode = 0
+offset_right = 120.0
+offset_bottom = 20.0
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.9098039, 0.8784314, 0.83137256, 1)
+theme_override_font_sizes/font_size = 13
+text = "Горы"
+horizontal_alignment = 1
+
+[node name="industry" type="Control" parent="Root/Body/MapCol/RouteMap/Regions" unique_id=880000060]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("17_region")
+region_id = "industry"
+title = "Промка"
+polygon_uv = PackedVector2Array(0.98759, 0.29325, 0.75558, 0.40123, 0.74628, 0.40123, 0.74007, 0.40982, 0.73759, 0.42454, 0.61600, 0.80982, 0.61476, 0.82454, 0.99938, 0.71902, 0.99938, 0.68344, 0.99566, 0.67117)
+label_uv = Vector2(0.83617, 0.57675)
+
+[node name="Fill" type="Polygon2D" parent="Root/Body/MapCol/RouteMap/Regions/industry" unique_id=880000061]
+color = Color(0.2901961, 0.3529412, 0.38431373, 0.1)
+
+[node name="Title" type="Label" parent="Root/Body/MapCol/RouteMap/Regions/industry" unique_id=880000062]
+layout_mode = 0
+offset_right = 120.0
+offset_bottom = 20.0
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.9098039, 0.8784314, 0.83137256, 1)
+theme_override_font_sizes/font_size = 13
+text = "Промка"
+horizontal_alignment = 1
+
 [node name="Convoy" type="ColorRect" parent="Root/Body/MapCol/RouteMap" unique_id=746488634]
 layout_mode = 0
 offset_right = 18.0
@@ -797,13 +976,13 @@ grow_vertical = 0
 text = "клик — закрыть смену"
 
 [node name="RadioPanel" type="Control" parent="Root/Body" unique_id=290919118]
-custom_minimum_size = Vector2(360, 0)
+custom_minimum_size = Vector2(380, 0)
 layout_mode = 2
 size_flags_horizontal = 3
-size_flags_stretch_ratio = 0.82
+size_flags_stretch_ratio = 0.78
 script = ExtResource("5_radio")
 
-[node name="Bg" type="ColorRect" parent="Root/Body/RadioPanel" unique_id=154482037]
+[node name="Shell" type="Panel" parent="Root/Body/RadioPanel" unique_id=154482037]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -811,102 +990,176 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
-color = Color(0.102, 0.086, 0.071, 1)
 
-[node name="Header" type="Label" parent="Root/Body/RadioPanel" unique_id=1340104158]
-layout_mode = 0
-offset_left = 12.0
-offset_top = 8.0
-offset_right = 120.0
-offset_bottom = 28.0
-text = "РАЦИЯ"
+[node name="Inner" type="MarginContainer" parent="Root/Body/RadioPanel" unique_id=154482038]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 12
 
-[node name="Levers" type="HBoxContainer" parent="Root/Body/RadioPanel" unique_id=1424189233]
-layout_mode = 0
-offset_left = 12.0
-offset_top = 36.0
-offset_right = 340.0
-offset_bottom = 68.0
+[node name="Col" type="VBoxContainer" parent="Root/Body/RadioPanel/Inner" unique_id=154482039]
+layout_mode = 2
 theme_override_constants/separation = 8
 
-[node name="FreqA" type="Button" parent="Root/Body/RadioPanel/Levers" unique_id=1843386905]
-custom_minimum_size = Vector2(90, 28)
+[node name="Header" type="Label" parent="Root/Body/RadioPanel/Inner/Col" unique_id=1340104158]
+unique_name_in_owner = true
 layout_mode = 2
-text = "A СВОИ"
+text = "РАЦИЯ"
 
-[node name="FreqB" type="Button" parent="Root/Body/RadioPanel/Levers" unique_id=2081426127]
-custom_minimum_size = Vector2(100, 28)
+[node name="Wave" type="Control" parent="Root/Body/RadioPanel/Inner/Col" unique_id=1772661588]
+custom_minimum_size = Vector2(0, 78)
 layout_mode = 2
-text = "B ЗЕМЛЯ"
-
-[node name="FreqC" type="Button" parent="Root/Body/RadioPanel/Levers" unique_id=1649623472]
-custom_minimum_size = Vector2(80, 28)
-layout_mode = 2
-text = "В"
-
-[node name="Wave" type="Control" parent="Root/Body/RadioPanel" unique_id=1772661588]
-anchors_preset = 0
-offset_left = 12.0
-offset_top = 76.0
-offset_right = 348.0
-offset_bottom = 140.0
+size_flags_horizontal = 3
 script = ExtResource("10_wave")
 
-[node name="Tag" type="Label" parent="Root/Body/RadioPanel/Wave" unique_id=224722067]
+[node name="Scan" type="ColorRect" parent="Root/Body/RadioPanel/Inner/Col/Wave" unique_id=1772661589]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+material = SubResource("ShaderMaterial_scan")
+color = Color(1, 1, 1, 1)
+
+[node name="WaveTag" type="Label" parent="Root/Body/RadioPanel/Inner/Col/Wave" unique_id=224722067]
+unique_name_in_owner = true
 layout_mode = 0
-offset_left = 6.0
+offset_left = 8.0
 offset_top = 4.0
-offset_right = 120.0
+offset_right = 220.0
 offset_bottom = 22.0
 text = "ветер · металл"
 
-[node name="CallMeta" type="Label" parent="Root/Body/RadioPanel" unique_id=692058614]
-layout_mode = 0
-offset_left = 14.0
-offset_top = 152.0
-offset_right = 340.0
-offset_bottom = 172.0
+[node name="Levers" type="HBoxContainer" parent="Root/Body/RadioPanel/Inner/Col" unique_id=1424189233]
+layout_mode = 2
+theme_override_constants/separation = 8
 
-[node name="CallText" type="Label" parent="Root/Body/RadioPanel" unique_id=223210558]
-layout_mode = 0
-offset_left = 14.0
-offset_top = 174.0
-offset_right = 340.0
-offset_bottom = 280.0
+[node name="FreqA" type="Button" parent="Root/Body/RadioPanel/Inner/Col/Levers" unique_id=1843386905]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(48, 36)
+layout_mode = 2
+size_flags_horizontal = 3
+text = "A"
+
+[node name="FreqB" type="Button" parent="Root/Body/RadioPanel/Inner/Col/Levers" unique_id=2081426127]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(48, 36)
+layout_mode = 2
+size_flags_horizontal = 3
+text = "B"
+
+[node name="FreqC" type="Button" parent="Root/Body/RadioPanel/Inner/Col/Levers" unique_id=1649623472]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(36, 36)
+layout_mode = 2
+text = "В"
+
+[node name="Log" type="Panel" parent="Root/Body/RadioPanel/Inner/Col" unique_id=692058613]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 90)
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="Pad" type="MarginContainer" parent="Root/Body/RadioPanel/Inner/Col/Log" unique_id=692058616]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 8
+theme_override_constants/margin_top = 6
+theme_override_constants/margin_right = 8
+theme_override_constants/margin_bottom = 6
+
+[node name="LogCol" type="VBoxContainer" parent="Root/Body/RadioPanel/Inner/Col/Log/Pad" unique_id=692058617]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="CallMeta" type="Label" parent="Root/Body/RadioPanel/Inner/Col/Log/Pad/LogCol" unique_id=692058614]
+unique_name_in_owner = true
+layout_mode = 2
+text = "эфир"
+
+[node name="CallText" type="Label" parent="Root/Body/RadioPanel/Inner/Col/Log/Pad/LogCol" unique_id=223210558]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 3
 text = "тишина на мембране"
 autowrap_mode = 3
 
-[node name="Answers" type="VBoxContainer" parent="Root/Body/RadioPanel" unique_id=1140908349]
-layout_mode = 1
-anchors_preset = 12
-anchor_top = 1.0
-anchor_right = 1.0
-anchor_bottom = 1.0
-offset_left = 12.0
-offset_top = -92.0
-offset_right = -12.0
-offset_bottom = -12.0
-grow_horizontal = 2
-grow_vertical = 0
-theme_override_constants/separation = 8
+[node name="Answers" type="VBoxContainer" parent="Root/Body/RadioPanel/Inner/Col" unique_id=1140908349]
+layout_mode = 2
+theme_override_constants/separation = 6
 
-[node name="Btn0" type="Button" parent="Root/Body/RadioPanel/Answers" unique_id=1511790438]
-custom_minimum_size = Vector2(0, 34)
+[node name="Btn0" type="Button" parent="Root/Body/RadioPanel/Inner/Col/Answers" unique_id=1511790438]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 32)
 layout_mode = 2
 text = "Повторите место"
 
-[node name="Btn1" type="Button" parent="Root/Body/RadioPanel/Answers" unique_id=173910824]
-custom_minimum_size = Vector2(0, 34)
+[node name="Btn1" type="Button" parent="Root/Body/RadioPanel/Inner/Col/Answers" unique_id=173910824]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 32)
 layout_mode = 2
 text = "Шлю кого есть"
 
+[node name="Crew" type="HBoxContainer" parent="Root/Body/RadioPanel/Inner/Col" unique_id=1140908350]
+layout_mode = 2
+theme_override_constants/separation = 12
+alignment = 1
+
+[node name="Medic" type="TextureButton" parent="Root/Body/RadioPanel/Inner/Col/Crew" unique_id=1140908351]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(56, 56)
+layout_mode = 2
+texture_filter = 1
+ignore_texture_size = true
+stretch_mode = 5
+texture_normal = ExtResource("13_medic")
+
+[node name="Tech" type="TextureButton" parent="Root/Body/RadioPanel/Inner/Col/Crew" unique_id=1140908352]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(56, 56)
+layout_mode = 2
+texture_filter = 1
+ignore_texture_size = true
+stretch_mode = 5
+texture_normal = ExtResource("14_tech")
+
+[node name="RadioTok" type="TextureButton" parent="Root/Body/RadioPanel/Inner/Col/Crew" unique_id=1140908353]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(56, 56)
+layout_mode = 2
+texture_filter = 1
+ignore_texture_size = true
+stretch_mode = 5
+texture_normal = ExtResource("15_radio")
+
+[node name="Guard" type="TextureButton" parent="Root/Body/RadioPanel/Inner/Col/Crew" unique_id=1140908354]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(56, 56)
+layout_mode = 2
+texture_filter = 1
+ignore_texture_size = true
+stretch_mode = 5
+texture_normal = ExtResource("16_guard")
+
 [node name="ConvoyStrip" type="Control" parent="Root" unique_id=260500139]
-custom_minimum_size = Vector2(0, 128)
+custom_minimum_size = Vector2(0, 136)
 layout_mode = 2
 size_flags_horizontal = 3
 script = ExtResource("6_strip")
 
-[node name="Bg" type="ColorRect" parent="Root/ConvoyStrip" unique_id=1675253042]
+[node name="Bg" type="Panel" parent="Root/ConvoyStrip" unique_id=1675253042]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -914,7 +1167,6 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
-color = Color(0.165, 0.141, 0.11, 1)
 
 [node name="Title" type="Label" parent="Root/ConvoyStrip" unique_id=811878934]
 layout_mode = 0

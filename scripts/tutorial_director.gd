@@ -121,7 +121,7 @@ func _enter(s: Step) -> void:
 			_send_clicked = false
 			Game.set_allowed_actions(["answer_1"])
 		Step.DISPATCH:
-			hint = "Кликни медика (М) на лазарете внизу. Чужие руки обучение не примет."
+			hint = "Кликни МЕДИК на рации справа. Или М на лазарете внизу."
 			Game.set_allowed_actions(["dispatch:medic"])
 		Step.EPILOGUE:
 			hint = "Мачта. Связной сел. Слова целые — Слушаю или Молчу."

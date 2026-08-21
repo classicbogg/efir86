@@ -9,7 +9,7 @@ extends Control
 @onready var _sub: Label = $Frame/Sub
 @onready var _convoy: ColorRect = $Convoy
 @onready var _pin: TextureRect = $Pin
-@onready var _pin_false: TextureRect = $PinFalse
+@onready var _pin_false: ColorRect = $PinFalse
 
 
 func _ready() -> void:
@@ -75,6 +75,12 @@ func _refresh() -> void:
 			_sub.add_theme_color_override("font_color", Palette.PAPER_DIM)
 	_layout_convoy()
 	_layout_pins()
+	var regions := get_node_or_null("Regions")
+	if regions:
+		for r in regions.get_children():
+			if r.has_method("_apply_layout"):
+				r._apply_layout()
+				r._apply_fill()
 	var edges := get_node_or_null("Edges")
 	if edges:
 		for e in edges.get_children():

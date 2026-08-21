@@ -3,6 +3,8 @@
 
 var _drag_from: int = -1
 
+@onready var _bg: Panel = $Bg
+@onready var _title: Label = $Title
 @onready var _plomb_btn: TextureButton = $Plomb
 @onready var _plomb_label: Label = $PlombLabel
 @onready var _trucks: HBoxContainer = $Trucks
@@ -23,6 +25,10 @@ func _ready() -> void:
 
 
 func _refresh() -> void:
+	if _bg:
+		_bg.add_theme_stylebox_override("panel", Palette.flat_style(Palette.INK, Palette.STEEL, 2))
+	if _title:
+		_title.add_theme_color_override("font_color", Palette.PAPER_DIM)
 	var locked := Game.plomb_locked
 	_plomb_btn.texture_normal = Icons.ui("plomb" if locked else "plomb_open")
 	_plomb_label.text = "ПЛОМБА" if locked else "СОРВАНА"
@@ -38,14 +44,14 @@ func _refresh() -> void:
 		var col := Palette.truck_color(kind)
 		if kind == "antenna" and not Game.antenna_alive:
 			col = Palette.JAM
-		var border := Palette.AMBER if i == _drag_from else Palette.PAPER_DIM
-		slot.add_theme_stylebox_override("panel", Palette.flat_style(col.darkened(0.45), border, 2))
+		var border := Palette.AMBER if i == _drag_from else Palette.STEEL
+		slot.add_theme_stylebox_override("panel", Palette.flat_style(col.darkened(0.5), border, 2, 4))
 		var icon: TextureRect = slot.get_node("Icon")
 		var label: Label = slot.get_node("Label")
 		icon.texture = Icons.truck(kind)
 		icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 		label.text = Palette.truck_label(kind)
-		label.add_theme_color_override("font_color", Palette.PAPER)
+		label.add_theme_color_override("font_color", Palette.PAPER_DIM)
 		_refresh_tokens(slot, kind)
 
 
@@ -72,18 +78,28 @@ func _refresh_tokens(slot: Panel, truck_kind: String) -> void:
 		btn.visible = true
 		var tok: Dictionary = matching[i]
 		btn.set_meta("token_id", str(tok["id"]))
-		btn.text = str(tok.get("glyph", "?"))
+		btn.tooltip_text = str(tok.get("title", tok["id"]))
+		btn.custom_minimum_size = Vector2(32, 32)
+		var stamp: Texture2D = Icons.token(str(tok["id"]))
 		var on_job: bool = str(tok.get("job", "none")) != "none"
 		var busy: bool = bool(tok.get("busy", false)) or on_job
 		var border := Palette.PAPER
 		if on_job:
 			border = Palette.CRT
-			btn.text = "%s %d%%" % [tok.get("glyph", "?"), int(float(tok.get("job_progress", 0.0)) * 100.0)]
 		elif busy:
 			border = Palette.AMBER
 		elif Game.pending_mechanic_send and str(tok["id"]) == "mechanic":
 			border = Palette.CRT
-		btn.add_theme_stylebox_override("normal", Palette.flat_style(Palette.INK, border, 2))
+		if stamp:
+			btn.icon = stamp
+			btn.expand_icon = true
+			btn.text = "%d%%" % int(float(tok.get("job_progress", 0.0)) * 100.0) if on_job else ""
+		else:
+			btn.icon = null
+			btn.text = str(tok.get("glyph", "?"))
+			if on_job:
+				btn.text = "%s %d%%" % [tok.get("glyph", "?"), int(float(tok.get("job_progress", 0.0)) * 100.0)]
+		btn.add_theme_stylebox_override("normal", Palette.flat_style(Palette.INK, border, 2, 16))
 		btn.add_theme_color_override("font_color", Palette.PAPER)
 
 

@@ -50,6 +50,7 @@ var breath_total: float = 8.0
 
 var current_node: String = "quarry"
 var dest_node: String = ""
+var selected_region: String = ""
 var travel: float = 0.0
 var haul_speed: float = 0.085
 var chosen_road: String = ""
@@ -138,6 +139,7 @@ func reset_from_scenario(def: Dictionary) -> void:
 
 	current_node = str(sc.get("start_node", "quarry"))
 	dest_node = ""
+	selected_region = ""
 	travel = 0.0
 	chosen_road = ""
 	fork_choice = ""
@@ -623,6 +625,32 @@ func pick_card(card_id: String) -> void:
 			status_line = "Вещь на раму: мгла тише, колонна медленнее. Выбери дорогу."
 	_log("Накладная: %s." % card_id)
 	emit_signal("changed")
+
+
+func select_region(region_id: String) -> void:
+	if region_id == "":
+		return
+	selected_region = region_id
+	status_line = "Земля: %s." % _region_title(region_id)
+	emit_signal("changed")
+
+
+func _region_title(region_id: String) -> String:
+	match region_id:
+		"city":
+			return "Город"
+		"reshetka":
+			return "Решётка"
+		"waste":
+			return "Пустырь"
+		"quarry":
+			return "Карьер"
+		"mountain":
+			return "Горы"
+		"industry":
+			return "Промка"
+		_:
+			return region_id
 
 
 func choose_dest(node_id: String) -> void:

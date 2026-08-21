@@ -1,0 +1,9 @@
+<svg width="3224" height="1630" viewBox="0 0 3224 1630" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- шесть земель; линии схемы остаются в dorogi.svg -->
+  <path id="city" data-title="Город" d="M954 656 L318 866 L2 1624 L558 1548 L558 1528 L742 1138 L742 1126 L754 1122 L756 1104 L958 676 Z" fill="rgb(176,118,64)" fill-opacity="0.7"/>
+  <path id="reshetka" data-title="Решётка" d="M1292 544 L956 654 L960 676 L758 1104 L756 1122 L744 1126 L744 1138 L560 1528 L560 1548 L1530 1412 L1538 1124 Z" fill="rgb(122,138,108)" fill-opacity="0.7"/>
+  <path id="waste" data-title="Пустырь" d="M2794 0 L1530 2 L1294 540 L1438 882 L1444 888 L2388 666 L2406 652 L2414 628 L2790 26 Z" fill="rgb(168,148,112)" fill-opacity="0.7"/>
+  <path id="quarry" data-title="Карьер" d="M2382 670 L2352 672 L1446 888 L1448 906 L1540 1124 L1532 1410 L1982 1348 L1984 1320 L2376 692 Z" fill="rgb(122,86,58)" fill-opacity="0.7"/>
+  <path id="mountain" data-title="Горы" d="M2796 0 L2792 26 L2416 628 L2408 654 L3184 476 L3190 488 L3212 1094 L3222 1112 L3222 0 Z" fill="rgb(72,78,82)" fill-opacity="0.7"/>
+  <path id="industry" data-title="Промка" d="M3184 478 L2436 654 L2406 654 L2386 668 L2378 692 L1986 1320 L1982 1344 L3222 1172 L3222 1114 L3210 1094 Z" fill="rgb(92,96,98)" fill-opacity="0.7"/>
+</svg>

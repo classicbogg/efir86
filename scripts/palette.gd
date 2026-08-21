@@ -50,9 +50,15 @@ static func truck_label(kind: String) -> String:
 			return kind.to_upper()
 
 
-static func flat_style(bg: Color, border: Color = Color(0, 0, 0, 0), border_w: float = 0.0) -> StyleBoxFlat:
+static func flat_style(bg: Color, border: Color = Color(0, 0, 0, 0), border_w: float = 0.0, radius: int = 0) -> StyleBoxFlat:
 	var s := StyleBoxFlat.new()
 	s.bg_color = bg
 	s.set_border_width_all(int(border_w))
 	s.border_color = border
+	if radius > 0:
+		s.set_corner_radius_all(radius)
+		s.content_margin_left = 2
+		s.content_margin_top = 2
+		s.content_margin_right = 2
+		s.content_margin_bottom = 2
 	return s
